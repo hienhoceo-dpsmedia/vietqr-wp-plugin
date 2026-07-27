@@ -71,21 +71,19 @@ jQuery(function ($) {
         $list.html('<div class="bank-item">Đang tải danh sách ngân hàng...</div>');
 
         try {
-            const fd = new FormData();
-            fd.append('action', 'vietqr_generator_get_banks');
-            fd.append('nonce', vietqrVars.nonce);
-
-            const res = await fetch(vietqrVars.ajaxUrl, {
+            const res = await fetch(vietqrVars.restUrl + '/bank-list', {
                 method: 'POST',
-                body: fd
+                headers: {
+                    'X-WP-Nonce': vietqrVars.nonce
+                }
             });
 
             const payload = await res.json();
-            if (!payload.success || !payload.data || !payload.data.banks) {
-                throw new Error('Không thể tải danh sách ngân hàng.');
+            if (!payload.success || !payload.banks) {
+                throw new Error(payload.message || 'Không thể tải danh sách ngân hàng.');
             }
 
-            banksData = payload.data.banks;
+            banksData = payload.banks;
             renderBanks(banksData);
         } catch (err) {
             $list.html('<div class="bank-item">Lỗi tải danh sách ngân hàng.</div>');
@@ -466,23 +464,24 @@ jQuery(function ($) {
         $text.text('Đang tạo mã...');
 
         try {
-            const fd = new FormData();
-            fd.append('action', 'vietqr_generator_generate_qr');
-            fd.append('nonce', vietqrVars.nonce);
-            fd.append('accountNo', accountNo);
-            fd.append('accountName', accountName.toUpperCase());
-            fd.append('acqId', bankId);
-            fd.append('amount', amount);
-            fd.append('addInfo', addInfo);
-
-            const res = await fetch(vietqrVars.ajaxUrl, {
+            const res = await fetch(vietqrVars.restUrl + '/generate-qr', {
                 method: 'POST',
-                body: fd
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': vietqrVars.nonce
+                },
+                body: JSON.stringify({
+                    accountNo: accountNo,
+                    accountName: accountName.toUpperCase(),
+                    acqId: bankId,
+                    amount: amount,
+                    addInfo: addInfo
+                })
             });
             const payload = await res.json();
 
-            if (!payload.success || !payload.data || !payload.data.qrDataURL) {
-                throw new Error((payload.data && payload.data.message) || 'Không tạo được mã QR.');
+            if (!payload.success || !payload.qrDataURL) {
+                throw new Error(payload.message || 'Không tạo được mã QR.');
             }
 
             const finalImage = await composeFullPreview(payload.data.qrDataURL, {
