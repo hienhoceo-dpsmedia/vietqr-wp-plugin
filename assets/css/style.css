@@ -1,0 +1,257 @@
+/* Scoped styles for VietQR Plugin */
+#vietqr-embed,
+#vietqr-embed * {
+    box-sizing: border-box;
+}
+
+#vietqr-embed {
+    color: #495057;
+    /* Font inherited from theme */
+}
+
+#vietqr-embed .vietqr-container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 2rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-wrap: wrap;
+    /* Font inherited from theme */
+}
+
+#vietqr-embed .vietqr-form,
+#vietqr-embed .vietqr-display {
+    margin-right: 40px;
+    flex: 1;
+    min-width: 320px;
+}
+
+#vietqr-embed .vietqr-title {
+    font-weight: 700;
+    color: #333;
+    margin: 0 0 12px 0;
+    font-size: 1.35rem;
+}
+
+#vietqr-embed .form-group {
+    margin-bottom: 1.25rem;
+}
+
+#vietqr-embed .form-group>.label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+#vietqr-embed .required {
+    color: #dc3545;
+}
+
+#vietqr-embed .form-control {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    outline: none;
+}
+
+#vietqr-embed .form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, .25);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#vietqr-embed .btn-submit {
+    background: #007bff;
+    color: #fff;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    width: 100%;
+    transition: background-color 0.2s ease;
+}
+
+#vietqr-embed .btn-submit:hover:not(:disabled) {
+    filter: brightness(0.9);
+}
+
+#vietqr-embed .btn-submit[disabled] {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+#vietqr-embed .custom-dropdown {
+    position: relative;
+    width: 100%;
+    margin-bottom: 1.25rem;
+}
+
+#vietqr-embed .dropdown-selected,
+#vietqr-embed #bankDropdown {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background: #fff;
+    padding: 0.75rem;
+    cursor: pointer;
+    min-height: 44px;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#vietqr-embed .caret {
+    margin-left: 10px;
+    color: #aaa;
+    font-size: 1.1rem;
+}
+
+#vietqr-embed .dropdown-menu {
+    position: absolute;
+    top: 105%;
+    left: 0;
+    width: 100%;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 0 0 8px 8px;
+    max-height: 270px;
+    overflow-y: auto;
+    z-index: 9999;
+    display: none;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+#vietqr-embed #bankSearch {
+    margin: 8px;
+    width: calc(100% - 16px);
+    font-size: 1rem;
+}
+
+#vietqr-embed .dropdown-item {
+    padding: 0.65rem 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    margin-right: 8px;
+    font-size: 1rem;
+}
+
+#vietqr-embed .dropdown-item img {
+    height: 34px;
+    width: 90px;
+    object-fit: contain;
+    border-radius: 4px;
+}
+
+#vietqr-embed .dropdown-item:hover {
+    background: #f0f4fa;
+}
+
+#vietqr-embed #qrCodeResult {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 250px;
+    border: 2px dashed #ced4da;
+    border-radius: 8px;
+    padding: 20px;
+    background: #f8f9fa;
+    text-align: center;
+}
+
+#vietqr-embed #qrCodeResult img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+}
+
+#vietqr-embed .loader {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: vietqr-spin 1s linear infinite;
+}
+
+@keyframes vietqr-spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+#vietqr-embed .error-message {
+    color: #dc3545;
+    font-size: 0.9rem;
+    margin-top: 10px;
+    display: none;
+}
+
+@media (max-width: 900px) {
+    #vietqr-embed .vietqr-container {
+        flex-direction: column;
+        padding: 1rem;
+        gap: 16px;
+        max-width: 100vw;
+    }
+
+    #vietqr-embed .vietqr-form,
+    #vietqr-embed .vietqr-display {
+        min-width: unset;
+        width: 100%;
+    }
+
+    #vietqr-embed .vietqr-title {
+        font-size: 1.2rem;
+    }
+}
+
+@media (max-width: 600px) {
+    #vietqr-embed .vietqr-container {
+        padding: 0.5rem;
+        margin: 8px;
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    #vietqr-embed .form-group>.label {
+        font-size: 1rem;
+    }
+
+    #vietqr-embed .form-control,
+    #vietqr-embed #bankDropdown {
+        font-size: 1rem;
+        padding: 0.6rem;
+    }
+
+    #vietqr-embed .btn-submit {
+        font-size: 1rem;
+        padding: 0.65rem 1.2rem;
+    }
+
+    #vietqr-embed #qrCodeResult {
+        min-height: 150px;
+        padding: 10px;
+    }
+
+    #vietqr-embed .dropdown-menu {
+        top: 102%;
+        font-size: 0.98rem;
+        max-height: 180px;
+    }
+
+    #vietqr-embed #bankSearch {
+        font-size: 1rem;
+    }
+}
