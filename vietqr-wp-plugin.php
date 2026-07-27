@@ -3,7 +3,7 @@
  * Plugin Name: VietQR Generator
  * Plugin URI: https://dpsmedia.vn
  * Description: Enterprise, high-performance VietQR generator plugin with WP REST API proxying, IP security, rate limiting, DB request logging, and Google Sign-In authentication.
- * Version: 1.5.0
+ * Version: 1.5.1
  * Author: DPS Media
  * Author URI: https://dpsmedia.vn
  * License: GPLv2 or later
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'VIETQR_VERSION', '1.5.0' );
+define( 'VIETQR_VERSION', '1.5.1' );
 define( 'VIETQR_PATH', plugin_dir_path( __FILE__ ) );
 define( 'VIETQR_URL', plugin_dir_url( __FILE__ ) );
 

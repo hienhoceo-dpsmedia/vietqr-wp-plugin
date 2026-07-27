@@ -27,8 +27,6 @@ class VietQR_Admin {
 		register_setting( 'vietqr_general_group', 'vietqr_generator_api_key', 'sanitize_text_field' );
 		register_setting( 'vietqr_general_group', 'vietqr_google_client_id', 'sanitize_text_field' );
 		register_setting( 'vietqr_general_group', 'vietqr_require_login', 'rest_sanitize_boolean' );
-		register_setting( 'vietqr_general_group', 'vietqr_generate_webhook', 'esc_url_raw' );
-		register_setting( 'vietqr_general_group', 'vietqr_bank_list_webhook', 'esc_url_raw' );
 
 		// Security Settings
 		register_setting( 'vietqr_security_group', 'vietqr_rate_limit_max', 'absint' );
@@ -145,20 +143,6 @@ class VietQR_Admin {
 							<input type="checkbox" id="vietqr_require_login" name="vietqr_require_login" value="1" <?php checked( 1, get_option( 'vietqr_require_login', 0 ) ); ?> />
 							<?php esc_html_e( 'Require users to sign in with Google before generating QR codes.', 'vietqr-generator' ); ?>
 						</label>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="vietqr_generate_webhook"><?php esc_html_e( 'QR Generate Webhook URL', 'vietqr-generator' ); ?></label></th>
-					<td>
-						<input type="url" id="vietqr_generate_webhook" name="vietqr_generate_webhook" value="<?php echo esc_attr( get_option( 'vietqr_generate_webhook', 'https://auto.dpsmedia.vn/webhook/qrdpsmedia' ) ); ?>" class="large-text" />
-						<p class="description"><?php esc_html_e( 'Upstream server-side QR generation endpoint URL.', 'vietqr-generator' ); ?></p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="vietqr_bank_list_webhook"><?php esc_html_e( 'Bank List Webhook URL', 'vietqr-generator' ); ?></label></th>
-					<td>
-						<input type="url" id="vietqr_bank_list_webhook" name="vietqr_bank_list_webhook" value="<?php echo esc_attr( get_option( 'vietqr_bank_list_webhook', 'https://auto.dpsmedia.vn/webhook/banklistdpsmedia' ) ); ?>" class="large-text" />
-						<p class="description"><?php esc_html_e( 'Upstream bank list service endpoint URL.', 'vietqr-generator' ); ?></p>
 					</td>
 				</tr>
 			</table>
