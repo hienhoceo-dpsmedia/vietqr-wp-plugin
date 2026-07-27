@@ -1,6 +1,8 @@
 jQuery(document).ready(function ($) {
     var banksData = [];
     var currentCaptchaAnswer = 8;
+    var restUrl = (typeof vietqrData !== 'undefined' && vietqrData.restUrl) ? vietqrData.restUrl : '/wp-json/vietqr-generator/v1';
+    var nonce = (typeof vietqrData !== 'undefined' && vietqrData.nonce) ? vietqrData.nonce : '';
 
     function generateCaptcha() {
         var num1 = Math.floor(Math.random() * 10) + 1;
@@ -29,6 +31,7 @@ jQuery(document).ready(function ($) {
 
     // Initialize captcha on page load
     generateCaptcha();
+
     $('#vietqr-embed #bankDropdown').on('click', function (e) {
         e.stopPropagation();
         var $menu = $('#vietqr-embed #bankMenu');
@@ -36,20 +39,29 @@ jQuery(document).ready(function ($) {
             renderBankList([]);
             $menu.show();
             $menu.find('#bankSearch').val('').prop('disabled', true).attr('placeholder', 'Đang tải...');
+            
             $.ajax({
-                url: 'https://auto.dpsmedia.vn/webhook/banklistdpsmedia',
-                type: 'POST', contentType: 'application/json', data: JSON.stringify({}),
-                success: function (response) {
-                    banksData = response && (response.data || response.banks) || [];
-                    $menu.find('#bankSearch').prop('disabled', false).attr('placeholder', 'Tìm ngân hàng...');
-                    renderBankList(banksData); $menu.show();
+                url: restUrl + '/bank-list',
+                type: 'POST',
+                contentType: 'application/json',
+                headers: {
+                    'X-WP-Nonce': nonce
                 },
-                error: function () {
+                success: function (response) {
+                    banksData = response && (response.data || response.banks || (Array.isArray(response) ? response : [])) || [];
+                    $menu.find('#bankSearch').prop('disabled', false).attr('placeholder', 'Tìm ngân hàng...');
+                    renderBankList(banksData);
+                    $menu.show();
+                },
+                error: function (xhr) {
                     renderBankList([]);
-                    $menu.append('<div class="dropdown-item">Lỗi tải danh sách ngân hàng</div>');
+                    var errorMsg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Lỗi tải danh sách ngân hàng';
+                    $menu.append('<div class="dropdown-item">' + errorMsg + '</div>');
                 }
             });
-        } else { $menu.toggle(); }
+        } else {
+            $menu.toggle();
+        }
     });
 
     function renderBankList(list) {
@@ -57,17 +69,28 @@ jQuery(document).ready(function ($) {
         $menu.find('.dropdown-item').remove();
         if (list && list.length) {
             list.forEach(function (bank) {
-                // Trust API for images as requested
-                $menu.append('\n              <div class="dropdown-item" data-bin="' + bank.bin + '">\n                <img src="' + bank.logo + '" alt="' + (bank.shortName || '') + ' logo" loading="lazy" width="90" height="34">\n                <span>' + (bank.shortName || bank.name || '') + '</span>\n              </div>');
+                $menu.append(
+                    '<div class="dropdown-item" data-bin="' + (bank.bin || '') + '">' +
+                    '<img src="' + (bank.logo || '') + '" alt="' + (bank.shortName || '') + ' logo" loading="lazy" width="90" height="34">' +
+                    '<span>' + (bank.shortName || bank.name || '') + '</span>' +
+                    '</div>'
+                );
             });
-        } else { $menu.append('<div class="dropdown-item">Không có dữ liệu ngân hàng</div>'); }
+        } else {
+            $menu.append('<div class="dropdown-item">Không có dữ liệu ngân hàng</div>');
+        }
     }
 
     $(document).on('input', '#vietqr-embed #bankSearch', function () {
         var kw = ($(this).val() || '').toLowerCase().trim();
-        if (!kw) { renderBankList(banksData); return; }
+        if (!kw) {
+            renderBankList(banksData);
+            return;
+        }
         var filtered = banksData.filter(function (b) {
-            return (b.shortName || '').toLowerCase().includes(kw) || (b.name || '').toLowerCase().includes(kw) || String(b.bin || '').includes(kw);
+            return (b.shortName || '').toLowerCase().includes(kw) ||
+                (b.name || '').toLowerCase().includes(kw) ||
+                String(b.bin || '').includes(kw);
         });
         renderBankList(filtered);
     });
@@ -83,7 +106,9 @@ jQuery(document).ready(function ($) {
     });
 
     $(document).on('click', function (e) {
-        if (!$(e.target).closest('#vietqr-embed .custom-dropdown').length) { $('#vietqr-embed #bankMenu').hide(); }
+        if (!$(e.target).closest('#vietqr-embed .custom-dropdown').length) {
+            $('#vietqr-embed #bankMenu').hide();
+        }
     });
 
     $('#vietqr-embed #refreshCaptcha').on('click', function () {
@@ -92,12 +117,16 @@ jQuery(document).ready(function ($) {
 
     $('#vietqr-embed #vietqr-generator-form').on('submit', function (e) {
         e.preventDefault();
-        var n8nWebhookUrl = 'https://auto.dpsmedia.vn/webhook/qrdpsmedia';
         var $generateBtn = $('#vietqr-embed #generateBtn');
         var $qrCodeResult = $('#vietqr-embed #qrCodeResult');
         var $errorMessage = $('#vietqr-embed #errorMessage');
 
-        if (!$('#vietqr-embed #bankId').val()) { $errorMessage.text('Vui lòng chọn ngân hàng.').show(); return; } else { $errorMessage.hide(); }
+        if (!$('#vietqr-embed #bankId').val()) {
+            $errorMessage.text('Vui lòng chọn ngân hàng.').show();
+            return;
+        } else {
+            $errorMessage.hide();
+        }
 
         var userAnswer = parseInt($('#vietqr-embed #captchaAnswer').val());
         if (isNaN(userAnswer) || userAnswer !== currentCaptchaAnswer) {
@@ -117,20 +146,33 @@ jQuery(document).ready(function ($) {
             accountName: $('#vietqr-embed #accountName').val(),
             acqId: $('#vietqr-embed #bankId').val(),
             amount: $('#vietqr-embed #amount').val() || null,
-            addInfo: $('#vietqr-embed #description').val() || null,
-            format: 'text', template: 'compact'
+            addInfo: $('#vietqr-embed #description').val() || null
         };
 
         $.ajax({
-            url: n8nWebhookUrl, type: 'POST', contentType: 'application/json', data: JSON.stringify(formData),
-            success: function (response) {
-                var img = (response && (response.qrCodeBase64 || (response.data && response.data.qrCodeBase64))) || '';
-                if (img) { $qrCodeResult.html('<img src="' + img + '" alt="VietQR Code">'); }
-                else { $qrCodeResult.html('<div>Không nhận được QR Code hợp lệ.</div>'); console.error('Invalid response from n8n:', response); }
+            url: restUrl + '/generate-qr',
+            type: 'POST',
+            contentType: 'application/json',
+            headers: {
+                'X-WP-Nonce': nonce
             },
-            error: function () {
+            data: JSON.stringify(formData),
+            success: function (response) {
+                if (response && response.nonce) {
+                    nonce = response.nonce;
+                }
+                var img = (response && (response.qrCodeBase64 || (response.data && response.data.qrCodeBase64))) || '';
+                if (img) {
+                    $qrCodeResult.html('<img src="' + img + '" alt="VietQR Code">');
+                } else {
+                    $qrCodeResult.html('<div>Không nhận được QR Code hợp lệ.</div>');
+                    console.error('Invalid response from VietQR REST API:', response);
+                }
+            },
+            error: function (xhr) {
                 $qrCodeResult.html('<div>Tạo mã QR thất bại.</div>');
-                $errorMessage.text('Đã có lỗi xảy ra. Vui lòng thử lại.').show();
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+                $errorMessage.text(msg).show();
             },
             complete: function () {
                 $generateBtn.prop('disabled', false).text('Tạo mã');
