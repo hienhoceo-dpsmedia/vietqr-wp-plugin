@@ -421,6 +421,11 @@ jQuery(function ($) {
         e.preventDefault();
         hideError();
 
+        if (vietqrVars.requireLogin === '1' && vietqrVars.isLoggedIn !== '1') {
+            showError('Vui lòng đăng nhập bằng Google trước khi tạo mã QR.');
+            return;
+        }
+
         const captchaInput = parseInt($('#vqg-captcha-answer').val(), 10);
         if (captchaInput !== captchaAnswer) {
             showError('Mã xác thực chưa đúng.');
@@ -607,12 +612,136 @@ jQuery(function ($) {
         $(document).on('click', '#vqg-btn-copy-text', function () {
             copyTextOnly();
         });
+
+        $(document).on('click', '#vqg-logout-btn', function (e) {
+            e.preventDefault();
+            handleLogout();
+        });
+    }
+
+    function initGoogleAuth() {
+        const $authBox = $('#vqg-auth-box');
+        if (!$authBox.length) return;
+
+        const requireLogin = vietqrVars.requireLogin === '1';
+        const isLoggedIn = vietqrVars.isLoggedIn === '1';
+        const clientId = vietqrVars.googleClientId || '';
+
+        if (!clientId) {
+            if (requireLogin && !isLoggedIn) {
+                $authBox.html('<div class="vqg-auth-alert danger">⚠️ Đăng nhập Google bắt buộc nhưng hệ thống chưa cấu hình Google Client ID.</div>');
+                $('#vqg-generate-btn').prop('disabled', true);
+            } else {
+                $authBox.empty();
+            }
+            return;
+        }
+
+        if (isLoggedIn) {
+            $authBox.html('<div class="vqg-auth-status success">✓ Bạn đã đăng nhập hệ thống. <a href="#" id="vqg-logout-btn">Đăng xuất</a></div>');
+            $('#vqg-generate-btn').prop('disabled', false);
+            return;
+        }
+
+        if (requireLogin && !isLoggedIn) {
+            $authBox.html(
+                '<div class="vqg-auth-alert danger">' +
+                    '<p style="margin:0 0 8px 0;"><strong>Yêu cầu đăng nhập:</strong> Vui lòng đăng nhập Google để tạo mã VietQR.</p>' +
+                    '<div id="vqg-gsi-btn"></div>' +
+                '</div>'
+            );
+            $('#vqg-generate-btn').prop('disabled', true);
+        } else {
+            $authBox.html(
+                '<div class="vqg-auth-alert info">' +
+                    '<p style="margin:0 0 8px 0;">Đăng nhập Google (tùy chọn):</p>' +
+                    '<div id="vqg-gsi-btn"></div>' +
+                '</div>'
+            );
+        }
+
+        function renderGsiButton() {
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                window.google.accounts.id.initialize({
+                    client_id: clientId,
+                    callback: handleGoogleLoginResponse
+                });
+
+                const btnElem = document.getElementById('vqg-gsi-btn');
+                if (btnElem) {
+                    window.google.accounts.id.renderButton(btnElem, {
+                        theme: 'outline',
+                        size: 'large',
+                        text: 'signin_with'
+                    });
+                }
+            } else {
+                setTimeout(renderGsiButton, 300);
+            }
+        }
+
+        renderGsiButton();
+    }
+
+    async function handleGoogleLoginResponse(response) {
+        if (!response || !response.credential) return;
+
+        try {
+            const res = await fetch(vietqrVars.restUrl + '/google-login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': vietqrVars.nonce
+                },
+                body: JSON.stringify({ credential: response.credential })
+            });
+
+            const payload = await res.json();
+            if (!payload.success) {
+                showError(payload.message || 'Đăng nhập Google thất bại.');
+                return;
+            }
+
+            vietqrVars.isLoggedIn = '1';
+            if (payload.nonce) {
+                vietqrVars.nonce = payload.nonce;
+            }
+
+            initGoogleAuth();
+            hideError();
+            showToast();
+        } catch (err) {
+            showError('Lỗi kết nối khi xác thực Google.');
+        }
+    }
+
+    async function handleLogout() {
+        try {
+            const res = await fetch(vietqrVars.restUrl + '/logout', {
+                method: 'POST',
+                headers: {
+                    'X-WP-Nonce': vietqrVars.nonce
+                }
+            });
+
+            const payload = await res.json();
+            vietqrVars.isLoggedIn = '0';
+            if (payload.nonce) {
+                vietqrVars.nonce = payload.nonce;
+            }
+
+            initGoogleAuth();
+        } catch (err) {
+            vietqrVars.isLoggedIn = '0';
+            initGoogleAuth();
+        }
     }
 
     function init() {
         generateCaptcha();
         initEvents();
         fetchBanks();
+        initGoogleAuth();
         $('input[data-max]').each(function () {
             updateCounter($(this));
         });

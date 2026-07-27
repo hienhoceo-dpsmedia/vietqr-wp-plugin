@@ -3,7 +3,7 @@
  * Plugin Name: VietQR Generator
  * Plugin URI: https://dpsmedia.vn
  * Description: Enterprise, high-performance VietQR generator plugin with WP REST API proxying, IP security, rate limiting, DB request logging, and Google Sign-In authentication.
- * Version: 1.5.1
+ * Version: 1.5.2
  * Author: DPS Media
  * Author URI: https://dpsmedia.vn
  * License: GPLv2 or later
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'VIETQR_VERSION', '1.5.1' );
+define( 'VIETQR_VERSION', '1.5.2' );
 define( 'VIETQR_PATH', plugin_dir_path( __FILE__ ) );
 define( 'VIETQR_URL', plugin_dir_url( __FILE__ ) );
 
@@ -69,6 +69,14 @@ function vietqr_generator_register_assets() {
 	);
 
 	wp_register_script(
+		'google-gsi',
+		'https://accounts.google.com/gsi/client',
+		array(),
+		null,
+		true
+	);
+
+	wp_register_script(
 		'vietqr-script',
 		VIETQR_URL . 'assets/js/script.js',
 		array( 'jquery' ),
@@ -84,10 +92,15 @@ add_action( 'wp_enqueue_scripts', 'vietqr_generator_register_assets' );
 function vietqr_generator_shortcode() {
 	wp_enqueue_style( 'vietqr-font' );
 	wp_enqueue_style( 'vietqr-style' );
+	
+	$google_client_id = get_option( 'vietqr_google_client_id', '' );
+	if ( ! empty( $google_client_id ) ) {
+		wp_enqueue_script( 'google-gsi' );
+	}
+
 	wp_enqueue_script( 'vietqr-script' );
 
-	$google_client_id = get_option( 'vietqr_google_client_id', '' );
-	$require_login    = (bool) get_option( 'vietqr_require_login', false );
+	$require_login = (bool) get_option( 'vietqr_require_login', false );
 
 	wp_localize_script(
 		'vietqr-script',
@@ -112,6 +125,8 @@ function vietqr_generator_shortcode() {
 				<section class="vietqr-panel vietqr-form-panel">
 					<div class="vqg-panel-title" role="heading" aria-level="2"><?php esc_html_e( 'Thông tin thiết lập mã VietQR', 'vietqr-generator' ); ?></div>
 					<div class="vietqr-sub"><?php esc_html_e( 'Nhập đúng thông tin để tạo mã chuyển khoản chính xác.', 'vietqr-generator' ); ?></div>
+
+					<div id="vqg-auth-box" class="vqg-auth-box"></div>
 
 					<form id="vqg-form" autocomplete="off">
 						<div class="vq-field-wrap dropdown-wrap">
