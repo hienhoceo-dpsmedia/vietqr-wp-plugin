@@ -29,23 +29,6 @@ jQuery(function ($) {
         return new Intl.NumberFormat('vi-VN').format(Number(num)) + ' VND';
     }
 
-    function generateCaptcha() {
-        const a = Math.floor(Math.random() * 9) + 1;
-        const b = Math.floor(Math.random() * 9) + 1;
-        const plus = Math.random() > 0.5;
-
-        if (plus) {
-            captchaAnswer = a + b;
-            $('#vqg-captcha-question').text(a + ' + ' + b + ' = ?');
-        } else {
-            const max = Math.max(a, b);
-            const min = Math.min(a, b);
-            captchaAnswer = max - min;
-            $('#vqg-captcha-question').text(max + ' - ' + min + ' = ?');
-        }
-        $('#vqg-captcha-answer').val('');
-    }
-
     function updateCounter($input) {
         const max = parseInt($input.attr('data-max') || '0', 10);
         if (!max) return;
@@ -426,21 +409,9 @@ jQuery(function ($) {
             return;
         }
 
-        const captchaInput = parseInt($('#vqg-captcha-answer').val(), 10);
-        if (captchaInput !== captchaAnswer) {
-            showError('Mã xác thực chưa đúng.');
-            generateCaptcha();
-            return;
-        }
-
         const bankId = $('#vqg-bank-id').val();
         if (!bankId) {
             showError('Vui lòng chọn ngân hàng thụ hưởng.');
-            return;
-        }
-
-        if (!$('#vqg-agree-terms').is(':checked')) {
-            showError('Vui lòng đồng ý điều khoản và điều kiện.');
             return;
         }
 
@@ -740,7 +711,6 @@ jQuery(function ($) {
     }
 
     function init() {
-        generateCaptcha();
         initEvents();
         fetchBanks();
         initGoogleAuth();
