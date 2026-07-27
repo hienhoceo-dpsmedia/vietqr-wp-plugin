@@ -25,6 +25,18 @@ class VietQR_Admin {
 	}
 
 	public function register_settings(): void {
+		register_setting( 'vietqr_options_group', 'vietqr_google_client_id', array(
+			'type'              => 'string',
+			'sanitize_callback' => 'sanitize_text_field',
+			'default'           => '',
+		) );
+
+		register_setting( 'vietqr_options_group', 'vietqr_require_login', array(
+			'type'              => 'boolean',
+			'sanitize_callback' => 'rest_sanitize_boolean',
+			'default'           => false,
+		) );
+
 		register_setting( 'vietqr_options_group', 'vietqr_bank_list_webhook', array(
 			'type'              => 'string',
 			'sanitize_callback' => 'esc_url_raw',
@@ -99,6 +111,22 @@ class VietQR_Admin {
 			do_settings_sections( 'vietqr_options_group' );
 			?>
 			<table class="form-table">
+				<tr>
+					<th scope="row"><label for="vietqr_google_client_id"><?php esc_html_e( 'Google Client ID', 'vietqr-generator' ); ?></label></th>
+					<td>
+						<input type="text" id="vietqr_google_client_id" name="vietqr_google_client_id" value="<?php echo esc_attr( get_option( 'vietqr_google_client_id', '' ) ); ?>" class="large-text code" placeholder="xxxxxx.apps.googleusercontent.com">
+						<p class="description"><?php esc_html_e( 'OAuth 2.0 Web Client ID from Google Cloud Console for Google Sign-In.', 'vietqr-generator' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Authentication Requirement', 'vietqr-generator' ); ?></th>
+					<td>
+						<label for="vietqr_require_login">
+							<input type="checkbox" id="vietqr_require_login" name="vietqr_require_login" value="1" <?php checked( 1, get_option( 'vietqr_require_login', false ) ); ?>>
+							<?php esc_html_e( 'Require users to be logged in (or Sign In with Google) before generating VietQR codes.', 'vietqr-generator' ); ?>
+						</label>
+					</td>
+				</tr>
 				<tr>
 					<th scope="row"><label for="vietqr_bank_list_webhook"><?php esc_html_e( 'Bank List Webhook URL', 'vietqr-generator' ); ?></label></th>
 					<td>

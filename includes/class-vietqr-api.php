@@ -14,11 +14,38 @@ class VietQR_API {
 	public function register_routes(): void {
 		register_rest_route(
 			self::REST_NAMESPACE,
+			'/google-login',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'handle_google_login' ),
+				'permission_callback' => '__return_true', // Nonce checked manually inside callback
+				'args'                => array(
+					'credential' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::REST_NAMESPACE,
+			'/logout',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'handle_logout' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+
+		register_rest_route(
+			self::REST_NAMESPACE,
 			'/bank-list',
 			array(
 				'methods'             => array( WP_REST_Server::READABLE, WP_REST_Server::CREATABLE ),
 				'callback'            => array( $this, 'handle_bank_list' ),
-				'permission_callback' => '__return_true', // Nonce checked manually inside callback
+				'permission_callback' => '__return_true',
 			)
 		);
 
@@ -28,7 +55,7 @@ class VietQR_API {
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'handle_generate_qr' ),
-				'permission_callback' => '__return_true', // Nonce checked manually inside callback
+				'permission_callback' => '__return_true',
 				'args'                => array(
 					'accountNo'   => array(
 						'required'          => true,
@@ -65,6 +92,164 @@ class VietQR_API {
 			return null;
 		}
 		return is_numeric( $value ) ? (string) ( (float) $value ) : null;
+	}
+
+	public function handle_google_login( WP_REST_Request $request ) {
+		$ip         = $this->get_client_ip();
+		$ip_for_log = $ip ?: 'unknown';
+
+		// Verify REST Nonce for Google login CSRF protection
+		if ( ! $this->verify_nonce( $request ) ) {
+			VietQR_DB::log( $ip_for_log, 'Guest', 'google_login', 'blocked', 'Invalid REST Nonce on Google Sign-In.' );
+			return new WP_REST_Response(
+				array( 'success' => false, 'message' => __( 'Security check failed. Please refresh the page.', 'vietqr-generator' ) ),
+				403
+			);
+		}
+
+		$client_id = get_option( 'vietqr_google_client_id', '' );
+		if ( empty( $client_id ) ) {
+			return new WP_REST_Response(
+				array( 'success' => false, 'message' => __( 'Google Client ID is not configured on server.', 'vietqr-generator' ) ),
+				400
+			);
+		}
+
+		$credential = $request->get_param( 'credential' );
+		$verify_url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode( $credential );
+
+		$response = wp_remote_get( $verify_url, array( 'timeout' => 15 ) );
+		if ( is_wp_error( $response ) ) {
+			VietQR_DB::log( $ip_for_log, 'Guest', 'google_login', 'failed', 'Could not reach Google verification servers.' );
+			return new WP_REST_Response(
+				array( 'success' => false, 'message' => __( 'Failed to verify Google token with Google servers.', 'vietqr-generator' ) ),
+				500
+			);
+		}
+
+		$status_code = wp_remote_retrieve_response_code( $response );
+		$body        = wp_remote_retrieve_body( $response );
+		$data        = json_decode( $body, true );
+
+		if ( 200 !== $status_code || empty( $data ) || isset( $data['error'] ) ) {
+			$error_msg = $data['error_description'] ?? ( $data['error'] ?? __( 'Invalid Google token.', 'vietqr-generator' ) );
+			VietQR_DB::log( $ip_for_log, 'Guest', 'google_login', 'failed', $error_msg );
+			return new WP_REST_Response( array( 'success' => false, 'message' => $error_msg ), 400 );
+		}
+
+		// 1. Validate audience (Client ID)
+		$aud = $data['aud'] ?? '';
+		if ( $aud !== $client_id ) {
+			VietQR_DB::log( $ip_for_log, 'Guest', 'google_login', 'failed', 'Audience mismatch.' );
+			return new WP_REST_Response( array( 'success' => false, 'message' => __( 'Google Client ID audience verification failed.', 'vietqr-generator' ) ), 400 );
+		}
+
+		// 2. Validate issuer
+		$iss = $data['iss'] ?? '';
+		if ( ! in_array( $iss, array( 'https://accounts.google.com', 'accounts.google.com' ), true ) ) {
+			return new WP_REST_Response( array( 'success' => false, 'message' => __( 'Issuer verification failed.', 'vietqr-generator' ) ), 400 );
+		}
+
+		// 3. Validate email_verified
+		$email_verified = $data['email_verified'] ?? false;
+		if ( true !== $email_verified && 'true' !== $email_verified ) {
+			return new WP_REST_Response( array( 'success' => false, 'message' => __( 'Google email is not verified.', 'vietqr-generator' ) ), 400 );
+		}
+
+		// 4. Validate expiration
+		$exp = intval( $data['exp'] ?? 0 );
+		if ( $exp <= time() ) {
+			return new WP_REST_Response( array( 'success' => false, 'message' => __( 'Google token has expired.', 'vietqr-generator' ) ), 400 );
+		}
+
+		$email = strtolower( trim( $data['email'] ?? '' ) );
+		$name  = trim( $data['name'] ?? '' );
+		$sub   = trim( $data['sub'] ?? '' );
+
+		if ( empty( $email ) || empty( $sub ) ) {
+			return new WP_REST_Response( array( 'success' => false, 'message' => __( 'Invalid Google profile payload.', 'vietqr-generator' ) ), 400 );
+		}
+
+		// 5. Look up user by Google 'sub' meta key
+		$user = null;
+		$users_query = get_users( array(
+			'meta_key'   => 'vietqr_google_sub',
+			'meta_value' => $sub,
+			'number'     => 1,
+		) );
+
+		if ( ! empty( $users_query ) ) {
+			$user = $users_query[0];
+		} else {
+			// Find user by email
+			$user = get_user_by( 'email', $email );
+			if ( $user ) {
+				// Block silent linking of privileged accounts
+				if ( user_can( $user, 'edit_posts' ) || user_can( $user, 'manage_options' ) ) {
+					VietQR_DB::log( $ip_for_log, $email, 'google_login', 'blocked', 'Attempted silent linking to privileged account.' );
+					return new WP_REST_Response(
+						array(
+							'success' => false,
+							'message' => __( 'For security reasons, administrative accounts cannot be linked silently.', 'vietqr-generator' ),
+						),
+						403
+					);
+				}
+				update_user_meta( $user->ID, 'vietqr_google_sub', $sub );
+			} else {
+				// Provision new subscriber account
+				$username = sanitize_user( $email, true );
+				if ( username_exists( $username ) ) {
+					$username = $username . '_' . wp_rand( 100, 999 );
+				}
+				$password = wp_generate_password();
+				$user_id  = wp_insert_user( array(
+					'user_login'   => $username,
+					'user_email'   => $email,
+					'user_pass'    => $password,
+					'role'         => 'subscriber',
+					'display_name' => $name ? sanitize_text_field( $name ) : $email,
+				) );
+
+				if ( is_wp_error( $user_id ) ) {
+					VietQR_DB::log( $ip_for_log, $email, 'google_login', 'failed', $user_id->get_error_message() );
+					return new WP_REST_Response( array( 'success' => false, 'message' => $user_id->get_error_message() ), 500 );
+				}
+
+				$user = get_user_by( 'id', $user_id );
+				update_user_meta( $user->ID, 'vietqr_google_sub', $sub );
+			}
+		}
+
+		// Log user in
+		wp_clear_auth_cookie();
+		wp_set_current_user( $user->ID );
+		wp_set_auth_cookie( $user->ID, true );
+
+		VietQR_DB::log( $ip_for_log, $email, 'google_login', 'success', 'Successfully authenticated via Google Sign-In.' );
+
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'nonce'   => wp_create_nonce( 'wp_rest' ),
+				'user'    => array(
+					'display_name' => $user->display_name,
+					'email'        => $user->user_email,
+				),
+			),
+			200
+		);
+	}
+
+	public function handle_logout( WP_REST_Request $request ) {
+		wp_logout();
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'nonce'   => wp_create_nonce( 'wp_rest' ),
+			),
+			200
+		);
 	}
 
 	public function handle_bank_list( WP_REST_Request $request ) {
@@ -108,7 +293,7 @@ class VietQR_API {
 			);
 		}
 
-		// Check transient cache for bank list to avoid hitting upstream repeatedly
+		// Check transient cache for bank list
 		$cache_key = 'vietqr_bank_list_cache';
 		$cached    = get_transient( $cache_key );
 		if ( false !== $cached && is_array( $cached ) ) {
@@ -152,7 +337,6 @@ class VietQR_API {
 			);
 		}
 
-		// Cache for 1 hour
 		set_transient( $cache_key, $data, 3600 );
 		VietQR_DB::log( $ip_for_log, $user_id, 'bank_list', 'success', 'Bank list fetched successfully.' );
 
@@ -163,6 +347,18 @@ class VietQR_API {
 		$ip         = $this->get_client_ip();
 		$ip_for_log = $ip ?: 'unknown';
 		$user_id    = $this->get_user_identifier();
+
+		// 0. Login Requirement Check
+		if ( get_option( 'vietqr_require_login', false ) && ! is_user_logged_in() ) {
+			VietQR_DB::log( $ip_for_log, 'Guest', 'generate_qr', 'blocked', 'Unauthenticated user attempted QR generation.' );
+			return new WP_REST_Response(
+				array(
+					'success' => false,
+					'message' => __( 'Please sign in with Google to generate QR codes.', 'vietqr-generator' ),
+				),
+				401
+			);
+		}
 
 		// 1. Nonce verification
 		if ( ! $this->verify_nonce( $request ) ) {
@@ -268,9 +464,9 @@ class VietQR_API {
 
 		return new WP_REST_Response(
 			array(
-				'success'        => true,
-				'qrCodeBase64'   => $img,
-				'nonce'          => wp_create_nonce( 'wp_rest' ),
+				'success'      => true,
+				'qrCodeBase64' => $img,
+				'nonce'        => wp_create_nonce( 'wp_rest' ),
 			),
 			200
 		);

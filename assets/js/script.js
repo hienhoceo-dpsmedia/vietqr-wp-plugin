@@ -3,6 +3,94 @@ jQuery(document).ready(function ($) {
     var currentCaptchaAnswer = 8;
     var restUrl = (typeof vietqrData !== 'undefined' && vietqrData.restUrl) ? vietqrData.restUrl : '/wp-json/vietqr-generator/v1';
     var nonce = (typeof vietqrData !== 'undefined' && vietqrData.nonce) ? vietqrData.nonce : '';
+    var clientId = (typeof vietqrData !== 'undefined' && vietqrData.clientId) ? vietqrData.clientId : '';
+    var requireLogin = (typeof vietqrData !== 'undefined' && vietqrData.requireLogin === '1') ? true : false;
+    var isLoggedIn = (typeof vietqrData !== 'undefined' && vietqrData.isLoggedIn === '1') ? true : false;
+
+    // Google Sign-In Initialization
+    function initGoogleSignIn() {
+        if (!clientId || isLoggedIn) return;
+        if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+            setTimeout(initGoogleSignIn, 300);
+            return;
+        }
+
+        google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false
+        });
+
+        var btnContainer = document.getElementById('vietqrGoogleBtn');
+        if (btnContainer) {
+            google.accounts.id.renderButton(btnContainer, {
+                theme: 'outline',
+                size: 'medium',
+                type: 'standard',
+                shape: 'rectangular',
+                text: 'signin_with',
+                logo_alignment: 'left'
+            });
+        }
+    }
+
+    function handleGoogleCredentialResponse(response) {
+        if (!response || !response.credential) return;
+
+        var $errorMessage = $('#vietqr-embed #errorMessage');
+        $errorMessage.hide();
+
+        $.ajax({
+            url: restUrl + '/google-login',
+            type: 'POST',
+            contentType: 'application/json',
+            headers: {
+                'X-WP-Nonce': nonce
+            },
+            data: JSON.stringify({
+                credential: response.credential
+            }),
+            success: function (res) {
+                if (res && res.success) {
+                    if (res.nonce) {
+                        nonce = res.nonce;
+                    }
+                    // Auto-refresh page to update session and UI state
+                    window.location.reload();
+                } else {
+                    $errorMessage.text((res && res.message) ? res.message : 'Đăng nhập Google thất bại.').show();
+                }
+            },
+            error: function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Xác thực Google thất bại.';
+                $errorMessage.text(msg).show();
+            }
+        });
+    }
+
+    initGoogleSignIn();
+
+    // Logout Action
+    $(document).on('click', '#vietqrLogoutBtn', function (e) {
+        e.preventDefault();
+        var $btn = $(this);
+        $btn.prop('disabled', true).text('Đang thoát...');
+
+        $.ajax({
+            url: restUrl + '/logout',
+            type: 'POST',
+            contentType: 'application/json',
+            headers: {
+                'X-WP-Nonce': nonce
+            },
+            success: function (res) {
+                window.location.reload();
+            },
+            error: function () {
+                window.location.reload();
+            }
+        });
+    });
 
     function generateCaptcha() {
         var num1 = Math.floor(Math.random() * 10) + 1;
@@ -39,7 +127,7 @@ jQuery(document).ready(function ($) {
             renderBankList([]);
             $menu.show();
             $menu.find('#bankSearch').val('').prop('disabled', true).attr('placeholder', 'Đang tải...');
-            
+
             $.ajax({
                 url: restUrl + '/bank-list',
                 type: 'POST',
@@ -120,6 +208,11 @@ jQuery(document).ready(function ($) {
         var $generateBtn = $('#vietqr-embed #generateBtn');
         var $qrCodeResult = $('#vietqr-embed #qrCodeResult');
         var $errorMessage = $('#vietqr-embed #errorMessage');
+
+        if (requireLogin && !isLoggedIn) {
+            $errorMessage.text('Bạn phải đăng nhập bằng Google trước khi tạo mã VietQR.').show();
+            return;
+        }
 
         if (!$('#vietqr-embed #bankId').val()) {
             $errorMessage.text('Vui lòng chọn ngân hàng.').show();
