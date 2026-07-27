@@ -5,6 +5,11 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Environment / Secret files
+.env
+.env.*
+vietqr-config.php
+
 # Node / Build files
 node_modules/
 dist/
