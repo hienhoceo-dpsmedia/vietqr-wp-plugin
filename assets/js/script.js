@@ -621,43 +621,45 @@ jQuery(function ($) {
 
     function initGoogleAuth() {
         const $authBox = $('#vqg-auth-box');
+        const $appGrid = $('#vqg-app-grid');
         if (!$authBox.length) return;
 
         const requireLogin = vietqrVars.requireLogin === '1';
         const isLoggedIn = vietqrVars.isLoggedIn === '1';
         const clientId = vietqrVars.googleClientId || '';
 
-        if (!clientId) {
-            if (requireLogin && !isLoggedIn) {
-                $authBox.html('<div class="vqg-auth-alert danger">⚠️ Đăng nhập Google bắt buộc nhưng hệ thống chưa cấu hình Google Client ID.</div>');
-                $('#vqg-generate-btn').prop('disabled', true);
+        if (isLoggedIn) {
+            $authBox.html('<div class="vqg-auth-status success">✓ Bạn đã đăng nhập hệ thống. <a href="#" id="vqg-logout-btn">Đăng xuất</a></div>');
+            $appGrid.show();
+            return;
+        }
+
+        if (requireLogin) {
+            $appGrid.hide();
+            if (!clientId) {
+                $authBox.html('<div class="vqg-auth-alert danger">⚠️ Yêu cầu đăng nhập Google nhưng hệ thống chưa được cấu hình Google Client ID. Vui lòng liên hệ quản trị viên.</div>');
+                return;
+            }
+
+            $authBox.html(
+                '<div class="vqg-auth-card-block">' +
+                    '<h3>🔒 Yêu cầu đăng nhập</h3>' +
+                    '<p>Vui lòng đăng nhập bằng tài khoản Google để sử dụng công cụ tạo mã VietQR.</p>' +
+                    '<div id="vqg-gsi-btn" class="vqg-gsi-center"></div>' +
+                '</div>'
+            );
+        } else {
+            $appGrid.show();
+            if (clientId) {
+                $authBox.html(
+                    '<div class="vqg-auth-alert info">' +
+                        '<p style="margin:0 0 8px 0;">Đăng nhập Google (tùy chọn):</p>' +
+                        '<div id="vqg-gsi-btn"></div>' +
+                    '</div>'
+                );
             } else {
                 $authBox.empty();
             }
-            return;
-        }
-
-        if (isLoggedIn) {
-            $authBox.html('<div class="vqg-auth-status success">✓ Bạn đã đăng nhập hệ thống. <a href="#" id="vqg-logout-btn">Đăng xuất</a></div>');
-            $('#vqg-generate-btn').prop('disabled', false);
-            return;
-        }
-
-        if (requireLogin && !isLoggedIn) {
-            $authBox.html(
-                '<div class="vqg-auth-alert danger">' +
-                    '<p style="margin:0 0 8px 0;"><strong>Yêu cầu đăng nhập:</strong> Vui lòng đăng nhập Google để tạo mã VietQR.</p>' +
-                    '<div id="vqg-gsi-btn"></div>' +
-                '</div>'
-            );
-            $('#vqg-generate-btn').prop('disabled', true);
-        } else {
-            $authBox.html(
-                '<div class="vqg-auth-alert info">' +
-                    '<p style="margin:0 0 8px 0;">Đăng nhập Google (tùy chọn):</p>' +
-                    '<div id="vqg-gsi-btn"></div>' +
-                '</div>'
-            );
         }
 
         function renderGsiButton() {

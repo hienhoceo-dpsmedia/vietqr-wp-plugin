@@ -3,7 +3,7 @@
  * Plugin Name: VietQR Generator
  * Plugin URI: https://dpsmedia.vn
  * Description: Enterprise, high-performance VietQR generator plugin with WP REST API proxying, IP security, rate limiting, DB request logging, and Google Sign-In authentication.
- * Version: 1.5.2
+ * Version: 1.6.0
  * Author: DPS Media
  * Author URI: https://dpsmedia.vn
  * License: GPLv2 or later
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'VIETQR_VERSION', '1.5.2' );
+define( 'VIETQR_VERSION', '1.6.0' );
 define( 'VIETQR_PATH', plugin_dir_path( __FILE__ ) );
 define( 'VIETQR_URL', plugin_dir_url( __FILE__ ) );
 
@@ -121,12 +121,12 @@ function vietqr_generator_shortcode() {
 			<?php esc_html_e( 'Đã tạo mã VietQR thành công', 'vietqr-generator' ); ?>
 		</div>
 		<div class="vietqr-wrap">
-			<div class="vietqr-grid">
+			<div id="vqg-auth-box" class="vqg-auth-box"></div>
+
+			<div id="vqg-app-grid" class="vietqr-grid">
 				<section class="vietqr-panel vietqr-form-panel">
 					<div class="vqg-panel-title" role="heading" aria-level="2"><?php esc_html_e( 'Thông tin thiết lập mã VietQR', 'vietqr-generator' ); ?></div>
 					<div class="vietqr-sub"><?php esc_html_e( 'Nhập đúng thông tin để tạo mã chuyển khoản chính xác.', 'vietqr-generator' ); ?></div>
-
-					<div id="vqg-auth-box" class="vqg-auth-box"></div>
 
 					<form id="vqg-form" autocomplete="off">
 						<div class="vq-field-wrap dropdown-wrap">
@@ -192,15 +192,6 @@ function vietqr_generator_shortcode() {
 								<label for="vqg-pos-code" class="vq-label"><?php esc_html_e( 'Mã điểm bán', 'vietqr-generator' ); ?></label>
 								<input type="text" id="vqg-pos-code" class="form-control underline" data-max="25" maxlength="25">
 								<span id="vqg-pos-code-counter" class="char-counter">0/25</span>
-							</div>
-						</div>
-
-						<div class="vq-captcha-row">
-							<span class="vq-label"><?php esc_html_e( 'Xác thực', 'vietqr-generator' ); ?> *</span>
-							<div class="vq-captcha-wrap">
-								<span id="vqg-captcha-question" class="vq-q-badge">...</span>
-								<input type="number" id="vqg-captcha-answer" class="vq-a-input" placeholder="?" required>
-								<button type="button" id="vqg-refresh-captcha" class="vq-refresh-btn" title="<?php esc_attr_e( 'Đổi phép tính', 'vietqr-generator' ); ?>">↻</button>
 							</div>
 						</div>
 
