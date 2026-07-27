@@ -545,6 +545,10 @@ class VietQR_API {
 		return new WP_REST_Response(
 			array(
 				'success'   => true,
+				'data'      => array(
+					'qrDataURL' => $qr_data_url,
+					'qrCode'    => $qr_code,
+				),
 				'qrDataURL' => $qr_data_url,
 				'qrCode'    => $qr_code,
 			),

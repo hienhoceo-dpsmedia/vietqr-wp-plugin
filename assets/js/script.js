@@ -456,11 +456,13 @@ jQuery(function ($) {
             });
             const payload = await res.json();
 
-            if (!payload.success || !payload.qrDataURL) {
-                throw new Error(payload.message || 'Không tạo được mã QR.');
+            const qrDataUrl = (payload.data && payload.data.qrDataURL) || payload.qrDataURL || '';
+
+            if (!payload.success || !qrDataUrl) {
+                throw new Error(payload.message || (payload.data && payload.data.message) || 'Không tạo được mã QR.');
             }
 
-            const finalImage = await composeFullPreview(payload.data.qrDataURL, {
+            const finalImage = await composeFullPreview(qrDataUrl, {
                 amountText: formatVND(amount),
                 addInfo: addInfo,
                 accountName: accountName,
