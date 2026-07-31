@@ -1,23 +1,28 @@
 <?php
 
 /**
- * Lightweight regression test for the shortcode-scoped admin bar filter.
+ * Lightweight regression test for the subscriber-scoped admin bar filter.
  * Run with: php tests/test-admin-bar-scope.php
  */
 
 define('ABSPATH', __DIR__ . DIRECTORY_SEPARATOR);
 
-if (!class_exists('WP_Post')) {
-	class WP_Post
+if (!class_exists('WP_User')) {
+	class WP_User
 	{
-		public $post_content = '';
+		public $ID = 0;
+		public $roles = array();
+
+		public function exists()
+		{
+			return $this->ID > 0;
+		}
 	}
 }
 
 $registered_filters = array();
 $test_is_admin = false;
-$test_is_singular = true;
-$test_queried_object = null;
+$test_current_user = new WP_User();
 
 function plugin_dir_path($file)
 {
@@ -55,19 +60,9 @@ function is_admin()
 	return $GLOBALS['test_is_admin'];
 }
 
-function is_singular()
+function wp_get_current_user()
 {
-	return $GLOBALS['test_is_singular'];
-}
-
-function get_queried_object()
-{
-	return $GLOBALS['test_queried_object'];
-}
-
-function has_shortcode($content, $shortcode)
-{
-	return strpos($content, '[' . $shortcode) !== false;
+	return $GLOBALS['test_current_user'];
 }
 
 require dirname(__DIR__) . DIRECTORY_SEPARATOR . 'vietqr-wp-plugin.php';
@@ -83,24 +78,27 @@ function expect_value($label, $actual, $expected)
 $filter = $GLOBALS['registered_filters']['show_admin_bar'] ?? null;
 expect_value('show_admin_bar filter is registered', is_callable($filter), true);
 
-$post = new WP_Post();
-$GLOBALS['test_queried_object'] = $post;
-
 $GLOBALS['test_is_admin'] = true;
-$GLOBALS['test_is_singular'] = true;
-$post->post_content = '[vietqr_generator]';
+$GLOBALS['test_current_user']->ID = 10;
+$GLOBALS['test_current_user']->roles = array('subscriber');
 expect_value('admin screen remains unchanged', call_user_func($filter, true), true);
 
 $GLOBALS['test_is_admin'] = false;
-$GLOBALS['test_is_singular'] = false;
-expect_value('non-singular frontend remains unchanged', call_user_func($filter, true), true);
-
-$GLOBALS['test_is_singular'] = true;
-$post->post_content = '[contact_form]';
-expect_value('frontend without shortcode remains unchanged', call_user_func($filter, true), true);
-
-$post->post_content = '[vietqr_generator]';
-expect_value('VietQR shortcode page hides admin bar', call_user_func($filter, true), false);
+$GLOBALS['test_current_user']->roles = array('subscriber');
+expect_value('subscriber frontend hides admin bar', call_user_func($filter, true), false);
 expect_value('already hidden admin bar stays hidden', call_user_func($filter, false), false);
+
+$GLOBALS['test_current_user']->roles = array('contributor');
+expect_value('contributor frontend keeps admin bar', call_user_func($filter, true), true);
+
+$GLOBALS['test_current_user']->roles = array('editor');
+expect_value('editor frontend keeps admin bar', call_user_func($filter, true), true);
+
+$GLOBALS['test_current_user']->roles = array('subscriber', 'editor');
+expect_value('multi-role user keeps admin bar', call_user_func($filter, true), true);
+
+$GLOBALS['test_current_user']->ID = 0;
+$GLOBALS['test_current_user']->roles = array();
+expect_value('logged-out frontend remains unchanged', call_user_func($filter, true), true);
 
 fwrite(STDOUT, "PASS: admin bar scope regression tests\n");
