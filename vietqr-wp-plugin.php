@@ -55,6 +55,35 @@ function vietqr_init_plugin()
 }
 
 /**
+ * Hide the frontend Admin Bar for users provisioned as Subscribers.
+ *
+ * Keep the Admin Bar available in wp-admin and for every other role so
+ * administrators and content editors retain their normal WordPress tools.
+ *
+ * @param bool $show_admin_bar Whether WordPress should render the Admin Bar.
+ * @return bool
+ */
+function vietqr_hide_admin_bar_for_subscribers($show_admin_bar)
+{
+	if (is_admin() || ! $show_admin_bar) {
+		return $show_admin_bar;
+	}
+
+	$user = wp_get_current_user();
+	if (!($user instanceof WP_User) || ! $user->exists()) {
+		return $show_admin_bar;
+	}
+
+	$roles = (array) $user->roles;
+	if (1 === count($roles) && in_array('subscriber', $roles, true)) {
+		return false;
+	}
+
+	return $show_admin_bar;
+}
+add_filter('show_admin_bar', 'vietqr_hide_admin_bar_for_subscribers', 99);
+
+/**
  * Register frontend assets.
  */
 function vietqr_generator_register_assets()
