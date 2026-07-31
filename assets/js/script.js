@@ -3,7 +3,6 @@ jQuery(function ($) {
 
     let banksData = [];
     let selectedBank = null;
-    let captchaAnswer = 0;
     let lastGeneratedQr = '';
     let lastCopyText = '';
 
@@ -54,11 +53,13 @@ jQuery(function ($) {
         $list.html('<div class="bank-item">Đang tải danh sách ngân hàng...</div>');
 
         try {
+            const headers = {};
+            if (vietqrVars.isLoggedIn === '1' && vietqrVars.nonce) {
+                headers['X-WP-Nonce'] = vietqrVars.nonce;
+            }
             const res = await fetch(vietqrVars.restUrl + '/bank-list', {
-                method: 'POST',
-                headers: {
-                    'X-WP-Nonce': vietqrVars.nonce
-                }
+                method: 'GET',
+                headers: headers
             });
 
             const payload = await res.json();
@@ -85,11 +86,11 @@ jQuery(function ($) {
         list.forEach(function (bank) {
             const item = $(
                 '<div class="bank-item" data-bin="' + bank.bin + '">' +
-                    '<img class="bank-logo-mini" src="' + bank.logo + '" alt="' + bank.shortName + '" loading="lazy">' +
-                    '<div class="bank-meta">' +
-                        '<div><strong>' + bank.shortName + '</strong></div>' +
-                        '<div class="bank-fn">' + bank.name + '</div>' +
-                    '</div>' +
+                '<img class="bank-logo-mini" src="' + bank.logo + '" alt="' + bank.shortName + '" loading="lazy">' +
+                '<div class="bank-meta">' +
+                '<div><strong>' + bank.shortName + '</strong></div>' +
+                '<div class="bank-fn">' + bank.name + '</div>' +
+                '</div>' +
                 '</div>'
             );
             $list.append(item);
@@ -331,11 +332,11 @@ jQuery(function ($) {
     function renderResult(imageDataUrl) {
         $('#vqg-qr-result').html(
             '<div class="preview-frame">' +
-                '<img id="finalQrImage" src="' + imageDataUrl + '" alt="VietQR preview">' +
+            '<img id="finalQrImage" src="' + imageDataUrl + '" alt="VietQR preview">' +
             '</div>' +
             '<div class="preview-actions">' +
-                '<button type="button" class="preview-btn" id="vqg-btn-copy-image" title="Sao chép ảnh QR">🖼️ Sao chép hình ảnh</button>' +
-                '<button type="button" class="preview-btn" id="vqg-btn-copy-text" title="Sao chép nội dung chuyển khoản">🧾 Sao chép text</button>' +
+            '<button type="button" class="preview-btn" id="vqg-btn-copy-image" title="Sao chép ảnh QR">🖼️ Sao chép hình ảnh</button>' +
+            '<button type="button" class="preview-btn" id="vqg-btn-copy-text" title="Sao chép nội dung chuyển khoản">🧾 Sao chép text</button>' +
             '</div>'
         );
     }
@@ -440,12 +441,15 @@ jQuery(function ($) {
         $text.text('Đang tạo mã...');
 
         try {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (vietqrVars.isLoggedIn === '1' && vietqrVars.nonce) {
+                headers['X-WP-Nonce'] = vietqrVars.nonce;
+            }
             const res = await fetch(vietqrVars.restUrl + '/generate-qr', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-WP-Nonce': vietqrVars.nonce
-                },
+                headers: headers,
                 body: JSON.stringify({
                     accountNo: accountNo,
                     accountName: accountName.toUpperCase(),
@@ -500,7 +504,6 @@ jQuery(function ($) {
             $btn.prop('disabled', false);
             $loader.hide();
             $text.text('Tạo mã');
-            generateCaptcha();
         }
     }
 
@@ -569,13 +572,6 @@ jQuery(function ($) {
             $arrow.css('transform', $fields.hasClass('show') ? 'rotate(180deg)' : 'rotate(0deg)');
         });
 
-        $('#vqg-refresh-captcha').on('click', function () {
-            const $btn = $(this);
-            $btn.addClass('spin');
-            setTimeout(function () { $btn.removeClass('spin'); }, 520);
-            generateCaptcha();
-        });
-
         $('#vqg-form').on('submit', submitForm);
 
         $(document).on('click', '#vqg-btn-copy-image', function () {
@@ -616,9 +612,9 @@ jQuery(function ($) {
 
             $authBox.html(
                 '<div class="vqg-auth-card-block">' +
-                    '<h3>🔒 Yêu cầu đăng nhập</h3>' +
-                    '<p>Vui lòng đăng nhập bằng tài khoản Google để sử dụng công cụ tạo mã VietQR.</p>' +
-                    '<div id="vqg-gsi-btn" class="vqg-gsi-center"></div>' +
+                '<h3>🔒 Yêu cầu đăng nhập</h3>' +
+                '<p>Vui lòng đăng nhập bằng tài khoản Google để sử dụng công cụ tạo mã VietQR.</p>' +
+                '<div id="vqg-gsi-btn" class="vqg-gsi-center"></div>' +
                 '</div>'
             );
         } else {
@@ -626,8 +622,8 @@ jQuery(function ($) {
             if (clientId) {
                 $authBox.html(
                     '<div class="vqg-auth-alert info">' +
-                        '<p style="margin:0 0 8px 0;">Đăng nhập Google (tùy chọn):</p>' +
-                        '<div id="vqg-gsi-btn"></div>' +
+                    '<p style="margin:0 0 8px 0;">Đăng nhập Google (tùy chọn):</p>' +
+                    '<div id="vqg-gsi-btn"></div>' +
                     '</div>'
                 );
             } else {
@@ -662,12 +658,15 @@ jQuery(function ($) {
         if (!response || !response.credential) return;
 
         try {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (vietqrVars.isLoggedIn === '1' && vietqrVars.nonce) {
+                headers['X-WP-Nonce'] = vietqrVars.nonce;
+            }
             const res = await fetch(vietqrVars.restUrl + '/google-login', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-WP-Nonce': vietqrVars.nonce
-                },
+                headers: headers,
                 body: JSON.stringify({ credential: response.credential })
             });
 
@@ -692,11 +691,13 @@ jQuery(function ($) {
 
     async function handleLogout() {
         try {
+            const headers = {};
+            if (vietqrVars.isLoggedIn === '1' && vietqrVars.nonce) {
+                headers['X-WP-Nonce'] = vietqrVars.nonce;
+            }
             const res = await fetch(vietqrVars.restUrl + '/logout', {
                 method: 'POST',
-                headers: {
-                    'X-WP-Nonce': vietqrVars.nonce
-                }
+                headers: headers
             });
 
             const payload = await res.json();
